@@ -4,6 +4,12 @@ if [ "$(cat /etc/installer_type)" == "online" ]; then
     # Online installer - no local images, gets from repo in /etc/steamos-atomupd/mirror
     source /etc/steamos-atomupd/mirror
     LATEST_URL="${MIRROR}/holoiso-images/latest_$BRANCH.releasemeta"
+    if kdialog --warningyesno "This is an online installer, it Requires internet connection to download the latest HoloISO image during installation. Make sure you are connected to the internet before proceeding. Do you want to continue?"; then
+        echo "User chose to continue with online installer."
+    else
+        echo "User cancelled the installation."
+        exit 1
+    fi
     # put latest release to /etc/holoinstall/latest_$BRANCH.releasemeta
     curl -o /etc/holoinstall/latest_$BRANCH.releasemeta $LATEST_URL
     source /etc/holoinstall/latest_$BRANCH.releasemeta

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Comment[en_US]=
 Comment=
-Exec=holoiso_installer_gui
+Exec=holoiso_getlatest
 GenericName[en_US]=
 GenericName=
 Icon=run-install

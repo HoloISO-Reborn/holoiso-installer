@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [ "$(cat /etc/installer_type)" == "online" ]; then
+    # Online installer - no local images, gets from repo in /etc/steamos-atomupd/mirror
+    source /etc/steamos-atomupd/mirror
+    LATEST_URL="${MIRROR}/holoiso-images/latest_$BRANCH.releasemeta"
+    # put latest release to /etc/holoinstall/latest_$BRANCH.releasemeta
+    curl -o /etc/holoinstall/latest_$BRANCH.releasemeta $LATEST_URL
+    source /etc/holoinstall/latest_$BRANCH.releasemeta
+    echo $IMAGEFILE
+    wget "${MIRROR}/holoiso-images/${IMAGEFILE}.img.zst" -O "/etc/holoinstall/${IMAGEFILE}.img.zst"
+    wget "${MIRROR}/holoiso-images/${IMAGEFILE}.sha256" -O "/etc/holoinstall/${IMAGEFILE}.sha256"
+fi
+holoiso_installer_gui

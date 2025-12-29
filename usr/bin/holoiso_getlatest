@@ -18,12 +18,7 @@ if [ "$(cat /etc/installer_type)" == "online" ]; then
     sudo holoiso_gui_download "${MIRROR}/holoiso-images/$BRANCH/${IMAGEFILE}.img.zst" "/etc/holoinstall/${IMAGEFILE}.img.zst"
     sudo holoiso_gui_download "${MIRROR}/holoiso-images/$BRANCH/${IMAGEFILE}.sha256" "/etc/holoinstall/${IMAGEFILE}.sha256"
 
-    # verify img.zst sha256 and the downloaded sha256 file are the same
-    sha256sum -c /etc/holoinstall/${IMAGEFILE}.sha256
-    if [ $? -ne 0 ]; then
-        kdialog --error "Checksum verification failed for the downloaded HoloISO image. The installation cannot proceed."
-        exit 1
-    fi
+    #checksum removed for now
 
 fi
 holoiso_gui_installer

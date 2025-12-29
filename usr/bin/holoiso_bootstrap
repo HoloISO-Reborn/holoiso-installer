@@ -49,7 +49,8 @@ ROOTLOCATION=/tmp/holo_root
 INSTALLLOCATION=${ROOTLOCATION}/rootfs
 HOMELOCATION_TEMP=/tmp/holo_home
 SNAPSHOT_FUTURELOC=${HOMELOCATION_TEMP}/.steamos/installcontainer
-SUBVOL=$(ls /etc/holoinstall | grep holoiso | sed -s 's/.img.zst//g')
+SUBVOL=$(ls -1t /etc/holoinstall/*.img.zst | head -n1)
+SUBVOL=$(basename "$SUBVOL" .img.zst)
 SUBVOLLOCATION=/tmp/subvol
 
 echo "Bootstrapping HoloISO image $SUBVOL on $(blkid -L holo_root)..."
@@ -60,7 +61,9 @@ mount -L holo_root -o compress-force=zstd:1,discard,noatime,nodiratime ${ROOTLOC
 mount -L holo_home ${HOMELOCATION_TEMP}
 
 # Start build deploying here
+## Creates necessary directories
 mkdir -p ${SNAPSHOT_FUTURELOC} ${INSTALLLOCATION} ${HOMELOCATION_TEMP} ${SNAPSHOT_FUTURELOC} ${SUBVOLLOCATION}
+
 if [[ ! -d "${INSTALLLOCATION}/${SUBVOL}" ]]; then
     echo "Copying image file to home partition..."
     cp /etc/holoinstall/${SUBVOL}.img.zst ${SNAPSHOT_FUTURELOC}/

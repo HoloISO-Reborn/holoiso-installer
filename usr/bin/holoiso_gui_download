@@ -1,0 +1,74 @@
+import customtkinter as ctk
+import subprocess
+import threading
+import re
+import sys
+from pathlib import Path
+
+class WgetProgress(ctk.CTk):
+    def __init__(self, url, output):
+        super().__init__()
+
+        ctk.set_appearance_mode("dark")
+
+        self.geometry("500x140")
+        self.title("Downloading")
+
+        self.label = ctk.CTkLabel(self, text=f"Downloading {Path(output).name}")
+        self.label.pack(pady=10)
+
+        self.bar = ctk.CTkProgressBar(self, width=450)
+        self.bar.pack(pady=10)
+        self.bar.set(0)
+
+        threading.Thread(
+            target=self.worker,
+            args=(url, output),
+            daemon=True
+        ).start()
+
+    def worker(self, url, output):
+        cmd = [
+            "wget",
+            "--progress=bar:force",
+            url,
+            "-O",
+            output
+        ]
+
+        process = subprocess.Popen(
+            cmd,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        )
+
+        for line in process.stderr:
+            match = re.search(r"(\d+)%", line)
+            if match:
+                percent = int(match.group(1))
+                self.after(
+                    0,
+                    lambda p=percent: (
+                        self.bar.set(p / 100),
+                        self.label.configure(
+                            text=f"Downloading {Path(output).name} / {p}%"
+                        )
+                    )
+                )
+
+        self.after(0, self.finish)
+
+    def finish(self):
+        self.label.configure(text="Done 🎉")
+        self.bar.set(1)
+        self.after(1200, self.destroy)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("usage: wget_gui.py <url> <output>")
+        sys.exit(1)
+
+    app = WgetProgress(sys.argv[1], sys.argv[2])
+    app.mainloop()

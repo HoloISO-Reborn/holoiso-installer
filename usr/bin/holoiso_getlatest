@@ -2,8 +2,9 @@
 
 if [ "$(cat /etc/installer_type)" == "online" ]; then
     # Online installer - no local images, gets from repo in /etc/steamos-atomupd/mirror
+    BRANCH=$(cat /etc/installer_branch)
     source /etc/steamos-atomupd/mirror
-    LATEST_URL="${MIRROR}/holoiso-images/latest_$BRANCH.releasemeta"
+    LATEST_URL="${MIRROR}/holoiso-images/$BRANCH/latest_$BRANCH.releasemeta"
     if kdialog --warningyesno "This is an online installer, it Requires internet connection to download the latest HoloISO image during installation. Make sure you are connected to the internet before proceeding. Do you want to continue?"; then
         echo "User chose to continue with online installer."
     else
@@ -11,10 +12,10 @@ if [ "$(cat /etc/installer_type)" == "online" ]; then
         exit 1
     fi
     # put latest release to /etc/holoinstall/latest_$BRANCH.releasemeta
-    curl -o /etc/holoinstall/latest_$BRANCH.releasemeta $LATEST_URL
+    sudo wget $LATEST_URL -O /etc/holoinstall/latest_$BRANCH.releasemeta
     source /etc/holoinstall/latest_$BRANCH.releasemeta
     echo $IMAGEFILE
-    wget "${MIRROR}/holoiso-images/${IMAGEFILE}.img.zst" -O "/etc/holoinstall/${IMAGEFILE}.img.zst"
-    wget "${MIRROR}/holoiso-images/${IMAGEFILE}.sha256" -O "/etc/holoinstall/${IMAGEFILE}.sha256"
+    sudo wget "${MIRROR}/holoiso-images/$BRANCH/${IMAGEFILE}.img.zst" -O "/etc/holoinstall/${IMAGEFILE}.img.zst"
+    sudo wget "${MIRROR}/holoiso-images/$BRANCH/${IMAGEFILE}.sha256" -O "/etc/holoinstall/${IMAGEFILE}.sha256"
 fi
 holoiso_installer_gui

@@ -7,14 +7,18 @@ import sys
 from pathlib import Path
 
 class WgetProgress(ctk.CTk):
-    def __init__(self, url, output):
+    def __init__(self, url, output, sha=False):
         super().__init__()
 
         ctk.set_appearance_mode("dark")
 
         self.geometry("500x140")
         self.title("Downloading")
-
+        
+        self.output = output
+        self.url = url
+        self.sha = sha
+        
         self.label = ctk.CTkLabel(self, text=f"Downloading {Path(output).name}")
         self.label.pack(pady=10)
 
@@ -61,15 +65,51 @@ class WgetProgress(ctk.CTk):
         self.after(0, self.finish)
 
     def finish(self):
+        if self.sha:
+
+            cmd = [
+                "wget",
+                "--progress=bar:force",
+                f"{self.url}.sha256",
+                "-O",
+                "/tmp/checksum.sha256"
+            ]
+            subprocess.run(cmd)
+            self.label.configure(text="Verifying checksum...")
+            cmd = ["sha256sum", self.output, "|", "awk", "'{print $1}'"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            downloaded_checksum = result.stdout.strip()
+            
+            with open("/tmp/checksum.sha256", "r") as f:
+                expected_checksum = f.read().strip().split()[0]
+
+            if not expected_checksum:
+                self.label.configure(text="Checksum file not found (404)! ❌")
+                return
+
+            if downloaded_checksum != expected_checksum:
+                self.label.configure(text="Checksum verification failed! ❌")
+                return
+
         self.label.configure(text="Done 🎉")
         self.bar.set(1)
         self.after(1200, self.destroy)
 
 
 if __name__ == "__main__":
+    sha = False
     if len(sys.argv) != 3:
-        print("usage: wget_gui.py <url> <output>")
+        print("""usage: wget_gui.py [options] <url> <output>
+Options:
+  -h, --help    show this help message and exit
+  --sha256     verify download with sha256sum
+""")
         sys.exit(1)
-
-    app = WgetProgress(sys.argv[1], sys.argv[2])
+    for arg in sys.argv:
+        if arg in ("-h", "--help"):
+            print("usage: wget_gui.py <url> <output>")
+            sys.exit(0)
+        if arg == "--sha256":
+            sha=True
+    app = WgetProgress(sys.argv[1], sys.argv[2], sha)
     app.mainloop()

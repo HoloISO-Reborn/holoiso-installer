@@ -58,7 +58,8 @@ class WgetProgress(ctk.CTk):
                         self.bar.set(p / 100),
                         self.label.configure(
                             text=f"Downloading {Path(output).name} / {p}%"
-                        )
+                        ),
+                        print(f"Downloading {Path(output).name} / {p}%")
                     )
                 )
 

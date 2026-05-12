@@ -1,0 +1,27 @@
+#!/usr/bin/python3
+import customtkinter as ctk
+import subprocess
+import sys
+import os
+import time
+
+class  App(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+
+        self.title("HoloISO Installer")
+        self.geometry("600x400")
+
+        self.label = ctk.CTkLabel(self, text="Welcome to the HoloISO Installer!")
+        self.label.pack(pady=20)
+
+        self.next_button = ctk.CTkButton(self, text="Next", command=self.next_page)
+        self.next_button.pack(pady=10)
+
+    def next_page(self):
+        # Here you would implement the logic to go to the next page of the installer
+        pass
+
+if __name__ == "__main__":
+    app = App()
+    app.mainloop()

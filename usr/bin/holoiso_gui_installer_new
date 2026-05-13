@@ -118,16 +118,15 @@ class App(ctk.CTk):
             text="Welcome to the HoloISO Installer",
             font=ctk.CTkFont(size=24, weight="bold"),
         )
-        title.grid(row=0, column=0, padx=20, pady=(35, 10))
+        title.grid(row=0, column=0, padx=20, pady=(20, 20))
 
         desc = ctk.CTkLabel(
             tab,
             text=(
-                "This wizard will guide you through installing HoloISO.\n\n"
+                "This wizard will guide you through installing HoloISO.\n"
                 "Make sure you backed up important data before continuing."
             ),
             font=ctk.CTkFont(size=15),
-            justify="center",
         )
         desc.grid(row=1, column=0, padx=30, pady=10)
 
@@ -347,11 +346,13 @@ class App(ctk.CTk):
             self.drive_option.configure(values=drives)
             self.drive_option.set(drives[0])
             self.current_drive = drives[0]
+            self.refresh_partition_view()
 
         except subprocess.CalledProcessError:
             self.drive_option.configure(values=["No drives loaded"])
             self.drive_option.set("No drives loaded")
             self.current_drive = None
+            self.refresh_partition_view()
 
     def get_drive_device(self):
         if not self.current_drive:
@@ -585,6 +586,16 @@ class App(ctk.CTk):
                     font=ctk.CTkFont(size=11),
                 )
                 part_label.pack(expand=True)
+
+                if fstype == "btrfs":
+                    part_frame.configure(fg_color="#ffb300")
+                    part_label.configure(text_color="#000000")
+                if fstype == "vfat":
+                    part_frame.configure(fg_color="#4caf50")
+                if fstype == "ext4":
+                    part_frame.configure(fg_color="#2196f3")
+                if fstype == "unknown":
+                    part_frame.configure(fg_color="#000000")
 
                 mounts = ", ".join(
                     str(m) for m in mountpoints if m

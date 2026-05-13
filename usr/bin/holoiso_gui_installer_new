@@ -176,14 +176,44 @@ class App(ctk.CTk):
             font=ctk.CTkFont(size=22, weight="bold"),
         )
         title.grid(row=0, column=0, padx=20, pady=(30, 10))
-
+        
+        self.username = ctk.CTkEntry(
+            tab,
+            placeholder_text="Username",
+            font=ctk.CTkFont(size=15),
+        )
+        self.username.grid(row=1, column=0, padx=30, pady=10)
+        self.password = ctk.CTkEntry(
+            tab,
+            placeholder_text="Password",
+            font=ctk.CTkFont(size=15),
+        )
+        self.password.grid(row=2, column=0, padx=30, pady=10)
+        self.confirm_password = ctk.CTkEntry(
+            tab,
+            placeholder_text="Confirm password",
+            font=ctk.CTkFont(size=15),
+        )
+        self.confirm_password.grid(row=3, column=0, padx=30, pady=10)
+        self.enable_root = ctk.CTkCheckBox(
+            tab,
+            text="Enable root login? (not recommended)",
+            font=ctk.CTkFont(size=15),
+            state="disabled",
+            
+        )
+        self.enable_root.select()
+        self.enable_root.grid(row=4, column=0, padx=30, pady=10)
         desc = ctk.CTkLabel(
             tab,
-            text="This section is reserved for future use.",
-            font=ctk.CTkFont(size=15),
+            text="Note: The same password will be set for both the user and root accounts.",
+            font=ctk.CTkFont(size=12),
+            text_color="orange",
             justify="center",
         )
-        desc.grid(row=1, column=0, padx=30, pady=10)
+        desc.grid(row=5, column=0, padx=30, pady=10)
+        desc.grid_forget()
+
 
     def build_additional_tab(self):
         tab = self.tabview.tab("Additional Options")
@@ -360,6 +390,9 @@ class App(ctk.CTk):
             "holoiso_installer",
             "--drive",
             drive.replace("/dev/", ""),
+            "--username", self.username.get(),
+            "--password", self.password.get(),
+            "--root_password", self.password.get(),
         ]
 
         try:

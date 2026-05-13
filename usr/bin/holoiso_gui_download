@@ -2,9 +2,11 @@
 import customtkinter as ctk
 import subprocess
 import threading
+import hashlib
 import re
 import sys
 from pathlib import Path
+
 
 class WgetProgress(ctk.CTk):
     def __init__(self, url, output, sha=False):
@@ -12,15 +14,19 @@ class WgetProgress(ctk.CTk):
 
         ctk.set_appearance_mode("dark")
 
-        self.geometry("500x140")
+        self.geometry("500x130")
         self.title("Downloading")
-        
+
         self.output = output
         self.url = url
         self.sha = sha
-        
-        self.label = ctk.CTkLabel(self, text=f"Downloading {Path(output).name}")
-        self.label.pack(pady=10)
+        self.process = None
+
+        self.label = ctk.CTkLabel(self, text=f"Preparing {Path(output).name}")
+        self.label.pack(pady=(15, 5))
+
+        self.status = ctk.CTkLabel(self, text="Starting...")
+        self.status.pack(pady=5)
 
         self.bar = ctk.CTkProgressBar(self, width=450)
         self.bar.pack(pady=10)
@@ -32,85 +38,156 @@ class WgetProgress(ctk.CTk):
             daemon=True
         ).start()
 
-    def worker(self, url, output):
+    def set_status(self, text):
+        self.after(0, lambda: self.status.configure(text=text))
+
+    def set_progress(self, percent):
+        self.after(
+            0,
+            lambda: (
+                self.bar.set(percent / 100),
+                self.label.configure(
+                    text=f"Downloading {Path(self.output).name} / {percent}%"
+                )
+            )
+        )
+
+    def wget_download(self, url, output):
         cmd = [
             "wget",
             "--progress=bar:force",
+            "-c",
+            "--retry-connrefused",
+            "--waitretry=5",
+            "--read-timeout=20",
+            "--timeout=15",
+            "-t", "0",
             url,
             "-O",
             output
         ]
 
-        process = subprocess.Popen(
+        self.process = subprocess.Popen(
             cmd,
             stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
             text=True,
             bufsize=1
         )
 
-        for line in process.stderr:
-            match = re.search(r"(\d+)%", line)
-            if match:
-                percent = int(match.group(1))
-                self.after(
-                    0,
-                    lambda p=percent: (
-                        self.bar.set(p / 100),
-                        self.label.configure(
-                            text=f"Downloading {Path(output).name} / {p}%"
-                        ),
-                        print(f"Downloading {Path(output).name} / {p}%")
-                    )
-                )
+        for line in self.process.stderr:
+            line = line.strip()
+
+            percent = re.search(r"(\d+)%", line)
+            if percent:
+                self.set_status("Downloading...")
+                self.set_progress(int(percent.group(1)))
+                continue
+
+            lower = line.lower()
+
+            if "resolving" in lower:
+                self.set_status("Resolving host...")
+            elif "connecting" in lower:
+                self.set_status("Connecting...")
+            elif "connected" in lower:
+                self.set_status("Connected")
+            elif "awaiting response" in lower:
+                self.set_status("Waiting for server...")
+            elif "retrying" in lower:
+                self.set_status("Connection lost. Retrying...")
+            elif "failed" in lower:
+                self.set_status("Failed. Retrying...")
+            elif "read error" in lower:
+                self.set_status("Stalled/read error. Retrying...")
+            elif "no route to host" in lower:
+                self.set_status("No internet. Waiting...")
+            elif "network is unreachable" in lower:
+                self.set_status("Network unreachable. Waiting...")
+            elif "connection timed out" in lower:
+                self.set_status("Timed out. Retrying...")
+            elif "saved" in lower:
+                self.set_status("Download saved")
+
+        return self.process.wait()
+
+    def sha256_file(self, path):
+        h = hashlib.sha256()
+
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                h.update(chunk)
+
+        return h.hexdigest()
+
+    def verify_sha256(self):
+        sha_url = f"{self.url}.sha256"
+        sha_path = "/tmp/checksum.sha256"
+
+        self.set_status("Downloading checksum...")
+        code = self.wget_download(sha_url, sha_path)
+
+        if code != 0:
+            self.after(0, lambda: self.label.configure(text="Checksum download failed ❌"))
+            return False
+
+        self.set_status("Verifying checksum...")
+
+        with open(sha_path, "r", encoding="utf-8") as f:
+            expected = f.read().strip().split()[0]
+
+        if not expected:
+            self.after(0, lambda: self.label.configure(text="Checksum file empty ❌"))
+            return False
+
+        downloaded = self.sha256_file(self.output)
+
+        if downloaded != expected:
+            self.after(0, lambda: self.label.configure(text="Checksum failed ❌"))
+            return False
+
+        return True
+
+    def worker(self, url, output):
+        code = self.wget_download(url, output)
+
+        if code != 0:
+            self.after(0, lambda: self.label.configure(text="Download failed ❌"))
+            return
+
+        if self.sha:
+            if not self.verify_sha256():
+                return
 
         self.after(0, self.finish)
 
     def finish(self):
-        if self.sha:
-
-            cmd = [
-                "wget",
-                "--progress=bar:force",
-                f"{self.url}.sha256",
-                "-O",
-                "/tmp/checksum.sha256"
-            ]
-            subprocess.run(cmd)
-            self.label.configure(text="Verifying checksum...")
-            cmd = ["sha256sum", self.output, "|", "awk", "'{print $1}'"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            downloaded_checksum = result.stdout.strip()
-            
-            with open("/tmp/checksum.sha256", "r") as f:
-                expected_checksum = f.read().strip().split()[0]
-
-            if not expected_checksum:
-                self.label.configure(text="Checksum file not found (404)! ❌")
-                return
-
-            if downloaded_checksum != expected_checksum:
-                self.label.configure(text="Checksum verification failed! ❌")
-                return
-
         self.label.configure(text="Done 🎉")
+        self.status.configure(text="Download complete")
         self.bar.set(1)
         self.after(1200, self.destroy)
 
 
 if __name__ == "__main__":
     sha = False
-    if len(sys.argv) != 3:
+    args = sys.argv[1:]
+
+    if "-h" in args or "--help" in args:
         print("""usage: wget_gui.py [options] <url> <output>
+
 Options:
   -h, --help    show this help message and exit
-  --sha256     verify download with sha256sum
+  --sha256      verify download with sha256sum
 """)
+        sys.exit(0)
+
+    if "--sha256" in args:
+        sha = True
+        args.remove("--sha256")
+
+    if len(args) != 2:
+        print("usage: wget_gui.py [--sha256] <url> <output>")
         sys.exit(1)
-    for arg in sys.argv:
-        if arg in ("-h", "--help"):
-            print("usage: wget_gui.py <url> <output>")
-            sys.exit(0)
-        if arg == "--sha256":
-            sha=True
-    app = WgetProgress(sys.argv[1], sys.argv[2], sha)
+
+    app = WgetProgress(args[0], args[1], sha)
     app.mainloop()

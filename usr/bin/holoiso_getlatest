@@ -12,7 +12,7 @@ if [ "$(cat /etc/installer_type)" == "online" ]; then
         exit 1
     fi
     # put latest release to /etc/holoinstall/latest_$BRANCH.releasemeta
-    sudo wget $LATEST_URL -O /etc/holoinstall/latest_$BRANCH.releasemeta
+    sudo wget -c $LATEST_URL -O /etc/holoinstall/latest_$BRANCH.releasemeta
     source /etc/holoinstall/latest_$BRANCH.releasemeta
     echo $IMAGEFILE
     sudo holoiso_gui_download "${MIRROR}/holoiso-images/$BRANCH/${IMAGEFILE}.img.zst" "/etc/holoinstall/${IMAGEFILE}.img.zst"

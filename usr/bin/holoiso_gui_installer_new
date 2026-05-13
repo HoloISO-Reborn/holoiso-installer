@@ -377,9 +377,11 @@ class App(ctk.CTk):
 
         if not confirm:
             self.log("Installation cancelled.")
+            self.goto_tab("Summary")
             return
 
-        self.install_btn.configure(state="disabled")
+        # start_installation()
+        self.next_btn.configure(state="disabled")
         self.install_running = True
         self.progress.set(0.05)
 
@@ -395,24 +397,26 @@ class App(ctk.CTk):
 
     def run_installer(self, drive):
         command = [
+            "stdbuf", "-oL", "-eL",
             "holoiso_installer",
-            "--drive",
-            drive.replace("/dev/", ""),
+            "--drive", drive.replace("/dev/", ""),
             "--username", self.username.get(),
             "--password", self.password.get(),
             "--root_password", self.password.get(),
         ]
-
+        self.log(f"Command: {' '.join(command)}")
         try:
             self.process = subprocess.Popen(
                 command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
                 text=True,
                 bufsize=1,
+                universal_newlines=True,
             )
 
-            for line in self.process.stdout:
+            for line in iter(self.process.stdout.readline, ""):
                 self.after(0, self.log, line.rstrip())
 
             exit_code = self.process.wait()
@@ -426,7 +430,6 @@ class App(ctk.CTk):
             self.after(0, self.install_error, "holoiso_installer command not found.")
         except Exception as e:
             self.after(0, self.install_error, str(e))
-
     def install_success(self):
         self.install_running = False
         self.progress.set(1.0)
@@ -436,13 +439,13 @@ class App(ctk.CTk):
     def install_failed(self, exit_code):
         self.install_running = False
         self.progress.set(0)
-        self.install_btn.configure(state="normal")
+        self.next_btn.configure(state="normal")
         self.log(f"Installation failed with exit code {exit_code}.")
 
     def install_error(self, error):
         self.install_running = False
         self.progress.set(0)
-        self.install_btn.configure(state="normal")
+        self.next_btn.configure(state="normal")
         self.log(f"Installation error: {error}")
 
     def log(self, message):
@@ -632,7 +635,6 @@ class App(ctk.CTk):
         elif tab == "Installation":
             self.back_btn.configure(state="disabled")
             self.next_btn.configure(state="disabled")
-            self.log_btn.pack(side="right", padx=8, pady=10)
 
         elif tab == "Finish":
             self.back_btn.configure(state="disabled")

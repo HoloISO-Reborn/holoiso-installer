@@ -5,7 +5,7 @@ import threading
 from pathlib import Path
 from datetime import datetime
 from tkinter import messagebox
-
+import json
 
 LOG_PATH = Path("/tmp/holoiso-installer.log")
 
@@ -140,31 +140,44 @@ class App(ctk.CTk):
             text="Select Installation Drive",
             font=ctk.CTkFont(size=22, weight="bold"),
         )
-        title.grid(row=0, column=0, padx=20, pady=(30, 10))
+        title.grid(row=0, column=0, padx=20, pady=(20, 10))
+
+        drive_option_frame = ctk.CTkFrame(tab)
+        drive_option_frame.grid(row=1, column=0, pady=10)
 
         self.drive_option = ctk.CTkOptionMenu(
-            tab,
+            drive_option_frame,
             values=["No drives loaded"],
             command=self.drive_selected,
             width=350,
         )
-        self.drive_option.grid(row=1, column=0, padx=20, pady=20)
+        self.drive_option.grid(row=1, column=0, pady=10, padx=(0, 10))
 
         refresh_btn = ctk.CTkButton(
-            tab,
+            drive_option_frame,
             text="Refresh Drives",
             command=self.refresh_drives,
         )
-        refresh_btn.grid(row=2, column=0, pady=10)
-
+        refresh_btn.grid(row=1, column=2, pady=5)
+        
         warning = ctk.CTkLabel(
             tab,
             text="Warning: the selected drive may be erased during installation.",
             text_color="orange",
         )
-        warning.grid(row=3, column=0, padx=20, pady=15)
+        warning.grid(row=3, column=0, padx=20)
+
+        self.partition_bar = ctk.CTkFrame(tab, height=60)
+        self.partition_bar.grid(row=4, column=0, padx=20, pady=(5, 10), sticky="ew")
+
+        self.partition_info = ctk.CTkTextbox(tab, height=95)
+        self.partition_info.grid(row=5, column=0, padx=20, pady=(5, 10), sticky="ew")
+        self.partition_info.configure(state="disabled")
+        
+
 
         self.refresh_drives()
+        self.refresh_partition_view()
 
     def build_user_tab(self):
         tab = self.tabview.tab("User Setup")
@@ -245,13 +258,6 @@ class App(ctk.CTk):
         )
         title.grid(row=0, column=0, padx=20, pady=(30, 10))
 
-        desc = ctk.CTkLabel(
-            tab,
-            text="This section is reserved for future use.",
-            font=ctk.CTkFont(size=15),
-            justify="center",
-        )
-        desc.grid(row=1, column=0, padx=30, pady=10)
 
     def build_install_tab(self):
         tab = self.tabview.tab("Installation")
@@ -316,6 +322,7 @@ class App(ctk.CTk):
     def drive_selected(self, drive):
         self.current_drive = drive
         self.log(f"Selected drive: {drive}")
+        self.refresh_partition_view()
 
     def refresh_drives(self):
         try:
@@ -488,6 +495,110 @@ class App(ctk.CTk):
     def goto_tab(self, name):
         self.tabview.set(name)
         self.update_navbar()
+
+    def format_size(self, size):
+        units = ["B", "KiB", "MiB", "GiB", "TiB"]
+        value = float(size)
+
+        for unit in units:
+            if value < 1024:
+                return f"{value:.1f} {unit}"
+            value /= 1024
+
+        return f"{value:.1f} PiB"
+
+    def get_drive_name(self):
+        drive = self.get_drive_device()
+
+        if not drive:
+            return None
+
+        return drive.replace("/dev/", "")
+
+    def refresh_partition_view(self):
+        for widget in self.partition_bar.winfo_children():
+            widget.destroy()
+
+        self.partition_info.configure(state="normal")
+        self.partition_info.delete("1.0", "end")
+
+        drive_name = self.get_drive_name()
+
+        if not drive_name:
+            self.partition_info.insert("end", "No drive selected.\n")
+            self.partition_info.configure(state="disabled")
+            return
+
+        try:
+            result = subprocess.run(
+                ["lsblk", "-J", "-b", "-o", "NAME,SIZE,FSTYPE,LABEL,MOUNTPOINTS,TYPE", f"/dev/{drive_name}"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            data = json.loads(result.stdout)
+            disk = data["blockdevices"][0]
+            disk_size = int(disk.get("size", 0))
+            partitions = disk.get("children", [])
+
+            if not partitions:
+                empty = ctk.CTkLabel(
+                    self.partition_bar,
+                    text="Empty / no partitions",
+                    fg_color="#3a3a3a",
+                    corner_radius=8,
+                )
+                empty.pack(fill="both", expand=True, padx=4, pady=8)
+
+                self.partition_info.insert("end", f"/dev/{drive_name}: no partitions\n")
+                self.partition_info.configure(state="disabled")
+                return
+
+            for part in partitions:
+                name = part.get("name", "?")
+                size = int(part.get("size", 0))
+                fstype = part.get("fstype") or "unknown"
+                label = part.get("label") or ""
+                mountpoints = part.get("mountpoints") or []
+
+                fraction = size / disk_size if disk_size else 0
+                width_weight = max(1, int(fraction * 100))
+
+                part_frame = ctk.CTkFrame(
+                    self.partition_bar,
+                    fg_color="#2b7bbb",
+                    corner_radius=6,
+                )
+                part_frame.pack(
+                    side="left",
+                    fill="both",
+                    expand=True,
+                    padx=2,
+                    pady=8,
+                    ipadx=width_weight,
+                )
+
+                part_label = ctk.CTkLabel(
+                    part_frame,
+                    text=f"{name}\n{fstype}",
+                    font=ctk.CTkFont(size=11),
+                )
+                part_label.pack(expand=True)
+
+                mounts = ", ".join(
+                    str(m) for m in mountpoints if m
+                ) if mountpoints else "-"
+                self.partition_info.insert(
+                    "end",
+                    f"/dev/{name} | {self.format_size(size)} | {fstype} | {label} | {mounts}\n",
+                )
+
+            self.partition_info.configure(state="disabled")
+
+        except Exception as e:
+            self.partition_info.insert("end", f"Failed to read partitions: {e}\n")
+            self.partition_info.configure(state="disabled")
 
     def update_navbar(self):
         tab = self.tabview.get()

@@ -17,8 +17,8 @@ class App(ctk.CTk):
         self.title("HoloISO Installer")
         self.geometry("700x450")
         self.minsize(650, 400)
-        self.overrideredirect(True)
         self.after(1, self.center_window)
+        
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
@@ -46,23 +46,68 @@ class App(ctk.CTk):
 
     def create_ui(self):
         self.tabview = ctk.CTkTabview(self, command=self.page_event, state="disabled", text_color_disabled="white")
-        self.tabview.pack(fill="both", expand=True, padx=12, pady=12)
+        self.tabview.pack(fill="both", expand=True, padx=12, pady=(12, 6))
 
         self.tabs = [
             "Welcome",
             "Drive Selection",
+            "User Setup",
+            "Additional Options",
+            "Summary",
             "Installation",
             "Finish",
         ]
 
         for tab in self.tabs:
             self.tabview.add(tab)
-
         self.build_welcome_tab()
         self.build_drive_tab()
+        self.build_user_tab()
+        self.build_additional_tab()
+        self.build_summary_tab()
         self.build_install_tab()
         self.build_finish_tab()
+        self.build_navbar()
+        
+    def build_navbar(self):
+        self.navbar = ctk.CTkFrame(self, height=52)
+        self.navbar.pack(fill="x", padx=12, pady=(0, 12))
 
+        self.exit_btn = ctk.CTkButton(
+            self.navbar,
+            text="Exit",
+            command=self.exit,
+            width=100,
+        )
+        self.exit_btn.pack(side="left", padx=8, pady=10)
+
+        self.next_btn = ctk.CTkButton(
+            self.navbar,
+            text="Next",
+            command=self.go_next,
+            width=100,
+        )
+        self.next_btn.pack(side="right", padx=8, pady=10)
+
+        self.back_btn = ctk.CTkButton(
+            self.navbar,
+            text="Back",
+            command=self.go_back,
+            width=100,
+        )
+        self.back_btn.pack(side="right", padx=8, pady=10)
+
+        self.log_btn = ctk.CTkButton(
+            self.navbar,
+            text="Open Log",
+            command=self.open_log_window,
+            width=100,
+        )
+        self.log_btn.pack(side="right", padx=8, pady=10)
+        self.log_btn.pack_forget()
+
+        self.update_navbar()
+        
     def build_welcome_tab(self):
         tab = self.tabview.tab("Welcome")
         tab.grid_columnconfigure(0, weight=1)
@@ -85,23 +130,6 @@ class App(ctk.CTk):
             justify="center",
         )
         desc.grid(row=1, column=0, padx=30, pady=10)
-
-        nav = ctk.CTkFrame(tab, fg_color="transparent")
-        nav.grid(row=2, column=0, pady=25)
-
-        exit_btn = ctk.CTkButton(
-            nav,
-            text="Exit",
-            command=self.destroy,
-        )
-        exit_btn.grid(row=0, column=0, padx=8)
-
-        next_btn = ctk.CTkButton(
-            nav,
-            text="Start",
-            command=lambda: self.goto_tab("Drive Selection"),
-        )
-        next_btn.grid(row=0, column=1, padx=8)
 
     def build_drive_tab(self):
         tab = self.tabview.tab("Drive Selection")
@@ -136,24 +164,64 @@ class App(ctk.CTk):
         )
         warning.grid(row=3, column=0, padx=20, pady=15)
 
-        nav = ctk.CTkFrame(tab, fg_color="transparent")
-        nav.grid(row=4, column=0, pady=25)
-
-        back_btn = ctk.CTkButton(
-            nav,
-            text="Back",
-            command=lambda: self.goto_tab("Welcome"),
-        )
-        back_btn.grid(row=0, column=0, padx=8)
-
-        next_btn = ctk.CTkButton(
-            nav,
-            text="Next",
-            command=lambda: self.goto_tab("Installation"),
-        )
-        next_btn.grid(row=0, column=1, padx=8)
-
         self.refresh_drives()
+
+    def build_user_tab(self):
+        tab = self.tabview.tab("User Setup")
+        tab.grid_columnconfigure(0, weight=1)
+
+        title = ctk.CTkLabel(
+            tab,
+            text="User Setup",
+            font=ctk.CTkFont(size=22, weight="bold"),
+        )
+        title.grid(row=0, column=0, padx=20, pady=(30, 10))
+
+        desc = ctk.CTkLabel(
+            tab,
+            text="This section is reserved for future use.",
+            font=ctk.CTkFont(size=15),
+            justify="center",
+        )
+        desc.grid(row=1, column=0, padx=30, pady=10)
+
+    def build_additional_tab(self):
+        tab = self.tabview.tab("Additional Options")
+        tab.grid_columnconfigure(0, weight=1)
+
+        title = ctk.CTkLabel(
+            tab,
+            text="Additional Options",
+            font=ctk.CTkFont(size=22, weight="bold"),
+        )
+        title.grid(row=0, column=0, padx=20, pady=(30, 10))
+
+        desc = ctk.CTkLabel(
+            tab,
+            text="This section is reserved for future use.",
+            font=ctk.CTkFont(size=15),
+            justify="center",
+        )
+        desc.grid(row=1, column=0, padx=30, pady=10)
+        
+    def build_summary_tab(self):
+        tab = self.tabview.tab("Summary")
+        tab.grid_columnconfigure(0, weight=1)
+
+        title = ctk.CTkLabel(
+            tab,
+            text="Summary",
+            font=ctk.CTkFont(size=22, weight="bold"),
+        )
+        title.grid(row=0, column=0, padx=20, pady=(30, 10))
+
+        desc = ctk.CTkLabel(
+            tab,
+            text="This section is reserved for future use.",
+            font=ctk.CTkFont(size=15),
+            justify="center",
+        )
+        desc.grid(row=1, column=0, padx=30, pady=10)
 
     def build_install_tab(self):
         tab = self.tabview.tab("Installation")
@@ -174,30 +242,6 @@ class App(ctk.CTk):
         self.log_box = ctk.CTkTextbox(tab, width=520, height=170)
         self.log_box.grid(row=2, column=0, padx=20, pady=10, sticky="nsew")
         self.log("Installer ready.")
-
-        nav = ctk.CTkFrame(tab, fg_color="transparent")
-        nav.grid(row=3, column=0, pady=20)
-
-        back_btn = ctk.CTkButton(
-            nav,
-            text="Back",
-            command=lambda: self.goto_tab("Drive Selection"),
-        )
-        back_btn.grid(row=0, column=0, padx=8)
-
-        self.install_btn = ctk.CTkButton(
-            nav,
-            text="Install",
-            command=self.start_installation,
-        )
-        self.install_btn.grid(row=0, column=1, padx=8)
-
-        open_log_btn = ctk.CTkButton(
-            nav,
-            text="Open Log",
-            command=self.open_log_window,
-        )
-        open_log_btn.grid(row=0, column=2, padx=8)
 
     def build_finish_tab(self):
         tab = self.tabview.tab("Finish")
@@ -235,9 +279,6 @@ class App(ctk.CTk):
             command=self.destroy,
         )
         close_btn.grid(row=0, column=1, padx=8)
-
-    def goto_tab(self, name):
-        self.tabview.set(name)
 
     def page_event(self):
         print(f"Switched to: {self.tabview.get()}")
@@ -389,6 +430,74 @@ class App(ctk.CTk):
 
         text.configure(state="disabled")
 
+    def current_tab_index(self):
+        return self.tabs.index(self.tabview.get())
+
+    def go_back(self):
+        index = self.current_tab_index()
+
+        if index > 0:
+            self.goto_tab(self.tabs[index - 1])
+
+    def go_next(self):
+        tab = self.tabview.get()
+
+        if tab == "Summary":
+            self.goto_tab("Installation")
+            self.start_installation()
+            return
+
+        index = self.current_tab_index()
+
+        if index < len(self.tabs) - 1:
+            self.goto_tab(self.tabs[index + 1])
+
+    def goto_tab(self, name):
+        self.tabview.set(name)
+        self.update_navbar()
+
+    def update_navbar(self):
+        tab = self.tabview.get()
+
+        self.back_btn.configure(state="normal")
+        self.next_btn.configure(state="normal", text="Next")
+
+        if self.install_running:
+            self.back_btn.configure(state="disabled")
+            self.next_btn.configure(state="disabled")
+            return
+
+        if tab == "Welcome":
+            self.back_btn.configure(state="disabled")
+            self.next_btn.configure(text="Start")
+
+        elif tab == "Summary":
+            self.next_btn.configure(text="Install")
+
+        elif tab == "Installation":
+            self.back_btn.configure(state="disabled")
+            self.next_btn.configure(state="disabled")
+            self.log_btn.pack(side="right", padx=8, pady=10)
+
+        elif tab == "Finish":
+            self.back_btn.configure(state="disabled")
+            self.next_btn.configure(state="disabled")
+            self.log_btn.pack(side="right", padx=8, pady=10)
+        
+    def exit(self):
+        if self.install_running or self.process:
+            confirm = messagebox.askyesno(
+                "Confirm Exit",
+                "An installation is currently running.\nAre you sure you want to exit?",
+            )
+
+            if not confirm:
+                return
+
+            if self.process and self.process.poll() is None:
+                self.process.terminate()
+
+        self.destroy()
 
 if __name__ == "__main__":
     app = App()
